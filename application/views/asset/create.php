@@ -1,4 +1,4 @@
-<h2>Create an asset item</h2>
+<h2>Create asset</h2>
 
 <?php echo validation_errors(); ?>
 
@@ -12,7 +12,11 @@
 	<?php echo form_dropdown('category_id', $categories) ?><br />
 	<label for="room_id">Room (optional)</label>
 	<?php echo form_dropdown('room_id', $rooms) ?><br />
+	<label for="note">Note (optional)</label><br />
+	<?php echo form_textarea($note_settings) ?><br />
 
 	<input type="submit" name="submit" value="Create asset" />
 
 </form>
+<br /><br />
+<a href="<?php echo site_url('asset/index') ?>">Cancel</a>

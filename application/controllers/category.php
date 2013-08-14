@@ -26,6 +26,11 @@ class Category extends CI_Controller
 
 		$data['title'] = 'View category';
 
+		// get assets
+		$this->load->model('asset_model');
+		$this->load->helper('asset_view');
+		$data['assets'] = format_assets($this->asset_model->get_by_room_id($id));
+
 		$this->load->view('templates/header', $data);
 		$this->load->view('category/view', $data);
 		$this->load->view('templates/footer');

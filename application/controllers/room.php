@@ -19,12 +19,18 @@ class Room extends CI_Controller
 
 	public function view($id)
 	{
+		// get room info
 		$data['room'] = $this->room_model->get_room($id);
 		
 		if (empty($data['room']))
-			show_404();
+			show_error('room does not exist');
 
 		$data['title'] = 'View room';
+
+		// get assets
+		$this->load->model('asset_model');
+		$this->load->helper('asset_view');
+		$data['assets'] = format_assets($this->asset_model->get_by_room_id($id));
 
 		$this->load->view('templates/header', $data);
 		$this->load->view('room/view', $data);

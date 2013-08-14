@@ -9,12 +9,22 @@ class Asset extends CI_Controller
 
 	public function index()
 	{
-		$data['assets'] = $this->asset_model->get_assets();
 		$data['title'] = 'All Assets';
+
+		// for every asset: truncate 'note' and create HTML for delete button
+		$this->load->helper('asset_view');
+		$data['assets'] = format_assets($this->asset_model->get_assets());
 
 		// get categories
 		$this->load->model('category_model');
 		$data['categories'] = $this->category_model->form_dropdown_options();
+
+		// get rooms
+		$this->load->model('room_model');
+		$data['rooms'] = $this->room_model->form_dropdown_options();
+		// make sure default is set
+		$data['rooms'][NULL] = '-';
+
 
 		$this->load->view('templates/header', $data);
 		$this->load->view('asset/index', $data);
@@ -27,6 +37,8 @@ class Asset extends CI_Controller
 		
 		if (empty($data['asset']))
 			show_404();
+
+		$data['title'] = 'View asset item';
 
 		// convert category_id to name
 		$this->load->model('category_model');
@@ -41,8 +53,6 @@ class Asset extends CI_Controller
 			$data['asset']['room'] = $this->room_model->id_to_name($data['asset']['room_id']);
 		}
 
-		$data['title'] = 'View asset item';
-
 		$this->load->view('templates/header', $data);
 		$this->load->view('asset/view', $data);
 		$this->load->view('templates/footer');
@@ -50,6 +60,8 @@ class Asset extends CI_Controller
 
 	public function create()
 	{
+		$data['title'] = 'Create an asset item';
+
 		// load categories (required field)
 		$this->load->model('category_model');
 		$data['categories'] = $this->category_model->form_dropdown_options();
@@ -58,17 +70,21 @@ class Asset extends CI_Controller
 		$this->load->model('room_model');
 		$data['rooms'] = $this->room_model->form_dropdown_options();
 
+		// settings for fields
+		$data['note_settings'] = array(
+			'name' => 'note',
+			'rows' => 6,
+			'cols' => 30,
+			);
+
+		// validate
 		$this->load->helper('form');
 		$this->load->library('form_validation');
 
-		$data['title'] = 'Create an asset item';
-
 		$this->form_validation->set_rules('name', 'Name', 'required');
 		$this->form_validation->set_rules('available', 'Availability', 'required');
-		$this->form_validation->set_rules('category_id', 'Category ID', 'callback_validate_category_id'); 	// add required
-		$this->form_validation->set_message('validate_category_id', 'Invalid category ID');
-		$this->form_validation->set_rules('room_id', 'Room ID', 'callback_validate_room_id'); 	// add required
-		$this->form_validation->set_message('validate_room_id', 'Invalid room ID');
+		$this->form_validation->set_rules('category_id', 'Category ID', 'callback__create_validate_category_id'); 	// add required
+		$this->form_validation->set_rules('room_id', 'Room ID', 'callback__create_validate_room_id');
 
 		if ($this->form_validation->run() === FALSE) {
 			$this->load->view('templates/header', $data);
@@ -81,22 +97,205 @@ class Asset extends CI_Controller
 		}
 	}
 
-	// makes sure that category_id exists (required)
-	public function validate_category_id($id)
+	// delete an asset
+	// POST uri should look like asset/delete/id
+	public function delete()
 	{
-		$id = intval($id);
+		// make sure that this is called through POST
+		if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+			redirect(); 	// redirect to root
+		}
+
+		$id = $this->uri->segment(3);
+		if (empty($id)) {
+			// no id POSTed
+			show_error('no id given for asset!');
+			return;
+		}
+
+		$exists = $this->asset_model->id_exists($id);
+
+		if ($exists) {
+			// $id exists, delete it
+			if ($this->asset_model->delete($id)) {
+				// successfully deleted
+				redirect('asset/index');
+			}
+			else {
+				// unable to delete from db
+				show_error('unable to delete asset');
+			}
+		}
+		else {
+			show_error('id does not exist');
+		}
+	}
+
+	public function filter()
+	{
+		$data['title'] = 'Filter Assets';
+		// display filter errors in view
+		$errors = array();
+
+		// load helper functions
+		$this->load->helper('asset_view');
+		$this->load->helper('asset_filter');
+
+		// load models and get relevant data from models
 		$this->load->model('category_model');
-		return $this->category_model->id_exists($id);
+		$this->load->model('room_model');
+		$data['categories'] = $this->category_model->form_dropdown_options();
+		$data['rooms'] = $this->room_model->form_dropdown_options();
+		$data['default_room'] = '-'; 	// default room when room_id == NULL
+
+		// retrieve all $_GET variables
+		$GET = $this->input->get(NULL, TRUE);
+
+		// when no GET params given, it will be FALSE
+		// change to empty array if FALSE
+		if ($GET === FALSE)
+			$GET = array();
+		$data['params'] = $GET;
+
+		// $filter will be passed to model
+		// column_name => column_value
+		$filter = array();
+		// default value selected for dropdown menus
+		$dropdown_selected = array(
+			'available' => -1,
+			'category'  =>  0,
+			'room'      =>  0,
+			);
+
+		// validate GET parameters and create dropdown select settings
+
+		if (isset($GET['available']) && is_whole_number($GET['available'])) {
+			if ($GET['available'] == '0' || $GET['available'] == '1') {
+				$filter['available'] = $GET['available'];
+				$dropdown_selected['available'] = $GET['available'];
+			}
+			else {
+				$errors[] = 'Invalid available parameter: '.$GET['available'];
+			}
+		}
+		if (isset($GET['category']) && is_whole_number($GET['category']) && $GET['category'] != '0') {
+			// validate that category exists
+			if ($this->category_model->id_exists($GET['category'])) {
+				$filter['category_id'] = $GET['category'];
+				$dropdown_selected['category'] = $GET['category'];
+			}
+			else {
+				$errors[] = 'Category does not exist: '.$GET['category'];
+			}
+		}
+
+		if (isset($GET['room']) && is_whole_number($GET['room']) && $GET['room'] != '0') {
+			// validate that room exists
+			if ($this->room_model->id_exists($GET['room'])) {
+				$filter['room_id'] = $GET['room'];
+				$dropdown_selected['room'] = $GET['room'];
+			}
+			else {
+				$errors[] = 'Room does not exist: '.$GET['room'];
+			}
+		}
+
+		// query database with filters
+		$assets = format_assets($this->asset_model->get_where($filter));
+
+
+		// for view
+		$this->load->helper('form');
+		$data['available_form_dropdown'] = array(
+			-1 => '',
+			 1 => 'yes',
+			 0 => 'no'
+			);
+		$data['dropdown_selected'] = $dropdown_selected;
+		$data['errors'] = $errors;
+		$data['assets'] = $assets;
+
+		$this->load->view('templates/header', $data);
+		$this->load->view('asset/filter', $data);
+		$this->load->view('templates/footer');
 	}
 
-	// makes sure room_id is valid or 0 (0 means no room)
-	public function validate_room_id($id)
+	// used to clean up url for filter()
+	public function filter_post()
+	{
+		// redirect to filter() if request isn't POST
+		if ($_SERVER['REQUEST_METHOD'] !== 'POST')
+			redirect(site_url('asset/filter'));
+
+		// retrieve all $_POST variables
+		$POST = $this->input->post(NULL, TRUE);
+
+		// when no POST params given, it will be FALSE
+		// change to empty array if FALSE
+		if ($POST === FALSE)
+			$POST = array();
+
+		// params will be passed to filter()
+		$params = array();
+
+		// filter out default values POST values (validate in filter())
+		if (isset($POST['available'])) {
+			if ($POST['available'] == '0' || $POST['available'] == '1')
+				$params['available'] = $POST['available'];
+		}
+
+		if (isset($POST['category'])) {
+			if ($POST['category'] != '0')
+				$params['category'] = $POST['category'];
+		}
+
+		if (isset($POST['room'])) {
+			if ($POST['room'] != '0')
+				$params['room'] = $POST['room'];
+		}
+
+		$url = site_url('asset/filter');
+		if (!empty($params))
+			$url .= '?'.http_build_query($params);
+
+		redirect($url);
+	}
+
+	// not accessible through browser, helper function for create()
+	public function _create_validate_category_id($id)
 	{
 		$id = intval($id);
-		if ($id === 0)
-			return TRUE;
+		if ($id !== 0) {
+			$this->load->model('category_model');
+			$valid = $this->category_model->id_exists($id);
+		}
+		else {
+			$valid = FALSE;
+		}
 
-		$this->load->model('room_model');
-		return $this->room_model->id_exists($id);
+		if (!$valid)
+			$this->form_validation->set_message('_create_validate_category_id', 'Category is required');
+
+		return $valid;
 	}
+
+	// not accessible through browser, helper function for create()
+	public function _create_validate_room_id($id)
+	{
+		$id = intval($id);
+		if ($id !== 0) {
+			$this->load->model('room_model');
+			$valid = $this->room_model->id_exists($id);
+		}
+		else {
+			// $id is allowed to be 0 (meaning no room)
+			$valid = TRUE;
+		}
+
+		if (!$valid)
+			$this->form_validation->set_message('_create_validate_room_id', 'Invalid room');
+
+		return $valid;
+	}
+
 }
