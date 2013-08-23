@@ -4,6 +4,10 @@ class Asset extends CI_Controller
 	public function __construct()
 	{
 		parent::__construct();
+
+		if (!$this->ion_auth->logged_in())
+			redirect('auth/login');
+		
 		$this->load->model('asset_model');
 	}
 
@@ -21,9 +25,10 @@ class Asset extends CI_Controller
 
 		// get rooms
 		$this->load->model('room_model');
-		$data['rooms'] = $this->room_model->form_dropdown_options();
-		// make sure default is set
-		$data['rooms'][NULL] = '-';
+		$data['rooms'] = $this->room_model->all();
+
+		// get users
+		$data['users'] = $this->ion_auth->get_all_users();
 
 
 		$this->load->view('templates/header', $data);
@@ -92,7 +97,7 @@ class Asset extends CI_Controller
 			$this->load->view('templates/footer');
 		}
 		else {
-			$this->asset_model->set_asset();
+			$this->asset_model->set_asset($this->session->userdata('user_id'));
 			$this->load->view('asset/success');
 		}
 	}
@@ -145,8 +150,8 @@ class Asset extends CI_Controller
 		$this->load->model('category_model');
 		$this->load->model('room_model');
 		$data['categories'] = $this->category_model->form_dropdown_options();
-		$data['rooms'] = $this->room_model->form_dropdown_options();
-		$data['default_room'] = '-'; 	// default room when room_id == NULL
+		$data['rooms'] = $this->room_model->all();
+		$data['users'] = $this->ion_auth->get_all_users();
 
 		// retrieve all $_GET variables
 		$GET = $this->input->get(NULL, TRUE);
@@ -155,7 +160,6 @@ class Asset extends CI_Controller
 		// change to empty array if FALSE
 		if ($GET === FALSE)
 			$GET = array();
-		$data['params'] = $GET;
 
 		// $filter will be passed to model
 		// column_name => column_value
@@ -189,9 +193,20 @@ class Asset extends CI_Controller
 			}
 		}
 
-		if (isset($GET['room']) && is_whole_number($GET['room']) && $GET['room'] != '0') {
-			// validate that room exists
-			if ($this->room_model->id_exists($GET['room'])) {
+		if (isset($GET['room']) && is_whole_number($GET['room'])) {
+			// 0 = get all rooms (including undefined (room_id = NULL))
+			if ($GET['room'] == '0') {
+				// by default $dropdown_selected uses this value, so do not modify
+				// since getting all rooms, do not add to $filter
+			}
+			// -1 = get only undefined rooms
+			elseif ($GET['room'] == '-1') {
+				$filter['room_id'] = NULL;
+				$dropdown_selected['room'] = '-1';
+			}
+			// since not getting all rooms or undefined rooms, must be an individual room
+			// validate that it does exist
+			elseif ($this->room_model->id_exists($GET['room'])) {
 				$filter['room_id'] = $GET['room'];
 				$dropdown_selected['room'] = $GET['room'];
 			}
@@ -201,10 +216,9 @@ class Asset extends CI_Controller
 		}
 
 		// query database with filters
-		$assets = format_assets($this->asset_model->get_where($filter));
+		$data['assets'] = format_assets($this->asset_model->get_where($filter));
 
-
-		// for view
+		// make data available for view
 		$this->load->helper('form');
 		$data['available_form_dropdown'] = array(
 			-1 => '',
@@ -213,7 +227,6 @@ class Asset extends CI_Controller
 			);
 		$data['dropdown_selected'] = $dropdown_selected;
 		$data['errors'] = $errors;
-		$data['assets'] = $assets;
 
 		$this->load->view('templates/header', $data);
 		$this->load->view('asset/filter', $data);
@@ -296,6 +309,24 @@ class Asset extends CI_Controller
 			$this->form_validation->set_message('_create_validate_room_id', 'Invalid room');
 
 		return $valid;
+	}
+
+	// not accessible through browser, helper function for create()
+	// makes sure that every user_id associated with an asset exists
+	public function _create_validate_user_id($id)
+	{
+		if (empty($id)) {
+			$this->form_validation->set_message('_create_validate_user_id', 'User ID cannot be empty');
+			return FALSE;
+		}
+
+		$id = intval($id);
+		if (!$this->ion_auth->id_exists($id)) {
+			$this->form_validation->set_message('_create_validate_user_id', 'User ID does not exist');
+			return FALSE;
+		}
+
+		return TRUE;
 	}
 
 }

@@ -3,7 +3,6 @@
 <?php echo validation_errors(); ?>
 
 <?php echo form_open('asset/create') ?>
-
 	<label for="name">Name</label>
 	<input type="input" name="name" value="<?php echo set_value('name') ?>"/><br />
 	<input type="radio" name="available" value="1" <?php echo set_radio('available', '1') ?>>Available</input>
@@ -16,7 +15,6 @@
 	<?php echo form_textarea($note_settings) ?><br />
 
 	<input type="submit" name="submit" value="Create asset" />
-
 </form>
 <br /><br />
-<a href="<?php echo site_url('asset/index') ?>">Cancel</a>
+<?php echo anchor('asset/index', 'Cancel') ?>

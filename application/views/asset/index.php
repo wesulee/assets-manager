@@ -10,6 +10,7 @@
 		<th>ID</th>
 		<th>Name</th>
 		<th>Available</th>
+		<th>Added by</th>
 		<th>Category</th>
 		<th>Room</th>
 		<th>Note</th>
@@ -20,8 +21,9 @@
 		<td><?php echo $asset['id'] ?></td>
 		<td><?php echo $asset['name'] ?></td>
 		<td><?php echo $asset['available'] ? 'Yes' : 'No' ?></td>
+		<td><?php echo view_asset_username($asset, $users) ?></td>
 		<td><?php echo $categories[$asset['category_id']] ?></td>
-		<td><?php echo $rooms[$asset['room_id']] ?></td>
+		<td><?php echo view_asset_room($asset, $rooms) ?></td>
 		<td><?php echo $asset['note'] ?></td>
 		<td><?php echo $asset['deleteHTML'] ?></td>
 	</tr>

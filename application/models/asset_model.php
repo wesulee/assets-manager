@@ -17,7 +17,7 @@ class Asset_model extends CI_Model
 		return $query->row_array();
 	}
 
-	public function set_asset()
+	public function set_asset($user_id)
 	{
 		$this->load->helper('url');
 
@@ -28,6 +28,7 @@ class Asset_model extends CI_Model
 		$data = array(
 			'name'        => $this->input->post('name'),
 			'available'   => $available,
+			'user_id'     => $user_id,
 			'category_id' => $this->input->post('category_id'),
 			'room_id'     => $room_id,
 			'note'        => $this->input->post('note')

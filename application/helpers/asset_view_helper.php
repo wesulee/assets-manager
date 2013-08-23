@@ -3,7 +3,7 @@
 // all helper methods for assets
 
 // formats $assets so that they are ready for view
-function format_assets($assets)
+function format_assets(&$assets)
 {
 	if (empty($assets))
 		return $assets;
@@ -40,4 +40,33 @@ function generate_asset_delete_html($id)
 	$html .= '</form>';
 
 	return $html;
+}
+
+// create a link to lookup assets by username
+// display default username when not set
+function view_asset_username(&$asset, &$users)
+{
+	// if no actual user_id associated, just display the default name (no link)
+	if ($asset['user_id'] == 0)
+		return $users['DEFAULT'];
+
+	return anchor('user/view/'.$users[$asset['user_id']], $users[$asset['user_id']]);
+}
+
+// correctly display asset room
+function view_asset_room(&$asset, &$rooms)
+{
+	if (is_null($asset['room_id']))
+		return $rooms['DEFAULT'];
+	
+	return $rooms[$asset['room_id']];
+}
+
+// create the array for dropdown from array of all
+function view_room_dropdown_from_all($rooms)
+{
+	unset($rooms['DEFAULT']);
+	$rooms = array(0 => '', -1 => '(no room)') + $rooms;
+
+	return $rooms;
 }

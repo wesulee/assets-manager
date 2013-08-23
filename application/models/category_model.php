@@ -31,7 +31,7 @@ class Category_model extends CI_Model
 	// return options array used for form_dropdown()
 	public function form_dropdown_options()
 	{
-		$options = array(0 => '(select category)');
+		$options = array(0 => '');
 		$query = $this->db->get('categories');
 
 		foreach($query->result() as $row) {

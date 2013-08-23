@@ -1170,6 +1170,27 @@ class Ion_auth_model extends CI_Model
 		return $result;
 	}
 
+	// get all users
+	// returns array of id => username
+	public function get_all_users()
+	{
+		$users = self::users()->result();
+		$usersMap = array('DEFAULT' => '-');
+
+		foreach ($users as $user) {
+			$usersMap[$user->id] = $user->username;
+		}
+
+		return $usersMap;
+	}
+
+	// returns TRUE if user with id exists
+	public function id_exists($id)
+	{
+		$userInfo = $this->user($id)->row_array();
+		return !empty($userInfo);
+	}
+
 	/**
 	 * users
 	 *

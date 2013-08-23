@@ -50,6 +50,7 @@ class CI_Controller {
 
 		// new
 		$this->load->helper('url');
+		$this->load->library('ion_auth');
 
 		$this->load->initialize();
 		

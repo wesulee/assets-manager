@@ -43,6 +43,18 @@ class Room_model extends CI_Model
 		return $options;
 	}
 
+	public function all()
+	{
+		$rooms = array('DEFAULT' => '-');
+		$query = $this->db->get('rooms');
+
+		foreach($query->result() as $row) {
+			$rooms[$row->id] = $row->name;
+		}
+
+		return $rooms;
+	}
+
 	// returns TRUE only if room with given $id exists
 	public function id_exists($id)
 	{
